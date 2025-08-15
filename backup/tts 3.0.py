@@ -22,7 +22,7 @@ audio_slots = [None] * 40
 slot_names = [""] * 40
 
 # Idiomas
-from languages import languages_map
+from languages2 import languages_map
 
 # === Funções TTS ===
 def speak_text(text, lang):

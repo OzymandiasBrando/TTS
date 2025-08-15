@@ -1,0 +1,16 @@
+languages_map = {
+    "Português (Brasil)": "pt-br",
+    "Português (Portugal)": "pt-pt",
+    "Espanhol": "es",
+    "Inglês": "en",
+    "Japonês": "ja",
+    "Coreano": "ko",
+    "Chinês (Mandarim)": "zh-CN",
+    "Chinês (Taiwan)": "zh-TW",
+    "Italiano": "it",
+    "Francês": "fr",
+    "Alemão": "de",
+    "Russo": "ru",
+    "Grego": "el",
+    "Latim": "la",
+}
