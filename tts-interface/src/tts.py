@@ -139,17 +139,29 @@ def rename_slot(slot_index):
             update_slot_button(slot_index)
             rename_win.destroy()
             save_slots_config()
-    
+
     rename_win = tk.Toplevel(root)
     rename_win.title("Renomear Slot")
     rename_win.geometry("300x100")
     rename_win.configure(bg="#181a20")
-    
+
     ttk.Label(rename_win, text="Novo nome:").pack(pady=(10, 0))
     name_entry = ttk.Entry(rename_win, font=("Segoe UI", 12))
     name_entry.pack(pady=5, padx=10, fill=tk.X)
     name_entry.insert(0, slot_names[slot_index])
     ttk.Button(rename_win, text="Salvar", command=save_name).pack(pady=5)
+
+# === Botão Global de Pausa ===
+paused = False
+def toggle_pause():
+    global paused
+    if mixer.music.get_busy():
+        if paused:
+            mixer.music.unpause()
+            paused = False
+        else:
+            mixer.music.pause()
+            paused = True
 
 # === Configuração ===
 def save_slots_config():
@@ -173,6 +185,53 @@ def load_slots_config():
             tts_volume = data.get("tts_volume", 0.5)
             slots_volume = data.get("slots_volume", 0.5)
             selected_language = data.get("language", "pt-br")
+
+# === Hotkey ===
+default_hotkey = "ctrl+enter"
+user_hotkey = default_hotkey
+
+def save_hotkey_config(hotkey):
+    global user_hotkey
+    user_hotkey = hotkey
+    if os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    else:
+        data = {}
+    data["hotkey"] = hotkey
+    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+
+def load_hotkey_config():
+    global user_hotkey
+    if os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            user_hotkey = data.get("hotkey", default_hotkey)
+    else:
+        user_hotkey = default_hotkey
+
+def open_settings():
+    settings_win = tk.Toplevel(root)
+    settings_win.title("Configurações")
+    settings_win.geometry("350x150")
+    settings_win.configure(bg="#181a20")
+
+    ttk.Label(settings_win, text="Atalho para TTS Rápido:").pack(pady=(15, 5))
+    hotkey_entry = ttk.Entry(settings_win, font=("Segoe UI", 12))
+    hotkey_entry.pack(pady=5, padx=10, fill=tk.X)
+    hotkey_entry.insert(0, user_hotkey)
+
+    def save_and_close():
+        save_hotkey_config(hotkey_entry.get().strip())
+        settings_win.destroy()
+        restart_hotkey_listener()
+
+    ttk.Button(settings_win, text="Salvar", command=save_and_close).pack(pady=10)
+
+def restart_hotkey_listener():
+    keyboard.unhook_all_hotkeys()
+    keyboard.add_hotkey(user_hotkey, open_quick_popup)
 
 # === GUI ===
 root = tk.Tk()
@@ -244,8 +303,11 @@ language_combo = ttk.Combobox(control_frame, values=list(languages_map.keys()), 
 language_combo.pack(side=tk.LEFT, padx=(5, 15))
 language_combo.set(list(languages_map.keys())[list(languages_map.values()).index(selected_language)])
 language_combo.bind("<<ComboboxSelected>>", on_language_change)
-ttk.Button(control_frame, text="Repetir", command=repeat_last, width=8).pack(side=tk.RIGHT, padx=(5, 0))
+
+# No frame de controles, adicione o botão de configurações à esquerda do "Limpar Histórico"
+ttk.Button(control_frame, text="⚙ Atalho", command=open_settings, width=12).pack(side=tk.RIGHT, padx=(5, 0))
 ttk.Button(control_frame, text="Limpar Histórico", command=clear_history, width=15).pack(side=tk.RIGHT)
+ttk.Button(control_frame, text="Repetir", command=repeat_last, width=8).pack(side=tk.RIGHT, padx=(5, 0))
 
 message_count = tk.IntVar(value=0)
 history_label = ttk.Label(tts_frame, text="Histórico: 0 Mensagens")
@@ -255,24 +317,13 @@ history_text = tk.Text(tts_frame, width=50, height=10, font=("Segoe UI", 10, "bo
 history_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=(0, 5))
 history_text.config(state=tk.DISABLED)
 
-# Mensagem fixa no canto inferior direito do histórico
-shortcut_label = ttk.Label(
-    tts_frame,
-    text="💡 Dica: Use Ctrl+Enter para abrir o TTS rápido",
-    font=("Segoe UI", 9),
-    foreground="#aaaaaa",
-    background="#181a20"
-)
-shortcut_label.place(relx=1.0, rely=1.0, anchor="se", x=-5, y=-5)
-
-# === Aba Sons ===
 # === Aba Sons ===
 sons_frame = ttk.Frame(notebook, style="TFrame")
 notebook.add(sons_frame, text="Sons")
 
 # Frame centralizado para os slots
 slots_container = ttk.Frame(sons_frame, style="TFrame")
-slots_container.pack(expand=True)  # ocupa o centro da aba
+slots_container.pack(expand=True)
 
 slot_buttons.clear()
 for i in range(40):
@@ -284,7 +335,7 @@ for i in range(40):
     ttk.Button(slots_container, text="Nomear", width=10, command=lambda i=i: rename_slot(i)).grid(row=row, column=col+1, padx=2)
     ttk.Button(slots_container, text="▶", width=3, command=lambda i=i: play_slot(i)).grid(row=row, column=col+2, padx=2)
 
-# Volume dos slots
+# Volume dos slots + botão pausa global
 slots_vol_frame = ttk.Frame(sons_frame, style="TFrame")
 slots_vol_frame.pack(side=tk.BOTTOM, pady=10)
 ttk.Label(slots_vol_frame, text="Volume").pack(side=tk.LEFT, padx=(0, 5))
@@ -292,6 +343,7 @@ slots_volume_slider = ttk.Scale(slots_vol_frame, from_=0, to=1, orient=tk.HORIZO
 slots_volume_slider.set(slots_volume)
 slots_volume_slider.pack(side=tk.LEFT)
 
+ttk.Button(slots_vol_frame, text="⏯ Parar", width=18, command=toggle_pause).pack(side=tk.LEFT, padx=(10, 0))
 
 # === Pop-up com Ctrl+Enter ===
 def open_quick_popup():
@@ -299,10 +351,7 @@ def open_quick_popup():
     popup.title("TTS Rápido")
     popup.configure(bg="#181a20")
     popup.geometry("400x120")
-
-    # Sempre no topo até fechar
     popup.attributes("-topmost", True)
-
     popup.grab_set()
     popup.lift()
     popup.focus_force()
@@ -328,16 +377,26 @@ def open_quick_popup():
     entry_popup.bind("<Return>", lambda e: on_enter(from_popup=True, popup_entry=entry_popup, popup=popup))
     ttk.Button(popup, text="Falar", command=lambda: on_enter(from_popup=True, popup_entry=entry_popup, popup=popup)).pack(pady=5)
 
-    # Garante foco total
+    # Fechar ao pressionar ESC
+    popup.bind("<Escape>", lambda e: popup.destroy())
+
+    # Fechar ao perder o foco
+    def on_popup_focus_out(event):
+        popup.destroy()
+    popup.bind("<FocusOut>", on_popup_focus_out)
+
     popup.after(50, lambda: [
         popup.lift(),
         popup.focus_force(),
         entry_popup.focus_set()
     ])
 
+# Carregue o hotkey salvo antes de iniciar o listener
+load_hotkey_config()
+
 # Atalho global
 def hotkey_listener():
-    keyboard.add_hotkey("ctrl+enter", open_quick_popup)
+    keyboard.add_hotkey(user_hotkey, open_quick_popup)
     keyboard.wait()
 
 threading.Thread(target=hotkey_listener, daemon=True).start()
