@@ -15,6 +15,7 @@ faster-whisper==1.0.3
 filelock==3.18.0
 flatbuffers==25.2.10
 fsspec==2025.3.2
+gTTS
 halo==0.0.31
 huggingface-hub==0.30.1
 humanfriendly==10.0
@@ -22,6 +23,7 @@ idna==3.10
 intel-openmp==2021.4.0
 Jinja2==3.1.6
 joblib==1.4.2
+keyboard
 lazy_loader==0.4
 llvmlite==0.43.0
 log-symbols==0.0.14
